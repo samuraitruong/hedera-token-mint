@@ -39,10 +39,15 @@ export async function processMintToken({
             project: projectName,
           });
         }
-        const data = await getStateOfProofNft(network, tokenId, treasuryId);
+        const data = await getStateOfProofNft(
+          network,
+          tokenId,
+          treasuryId,
+          count
+        );
         data.forEach((x: any) =>
           lines.push(
-            `mint_token,Mint of token for Project ${projectName},${x.accountId},${x.tokenId},${x.serialNumber},${x.carbonValue},${x.createdDate},${projectName},${projectDescription[index]},${process.env.EXTERNAL_URL}${x.transactionId},${x.stateProofUrl}`
+            `mint_token,Mint of token for Project ${projectName},${x.accountId},${x.tokenId},${x.serialNumber},${x.carbonValue},${x.timestamp},${x.createdDate},${projectName},${projectDescription[index]},${process.env.EXTERNAL_URL}${x.transactionId},${x.stateProofUrl}`
           )
         );
       }
@@ -51,7 +56,7 @@ export async function processMintToken({
     fs.writeFileSync(
       output,
       [
-        "stage,description,account_id,token_id,serial_number,carbon_value,creation_date,project_name,project_description,hyperlink, state_proof",
+        "stage,description,account_id,token_id,serial_number,carbon_value,consensus_timestamp,iso_timestamp,project_name,project_description,hyperlink,state_proof",
         ...lines,
       ].join("\n")
     );

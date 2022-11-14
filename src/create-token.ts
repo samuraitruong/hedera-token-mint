@@ -19,7 +19,7 @@ export async function createAccount(network: string) {
 
   console.log("Account Private Key", privateKey.toStringRaw());
   const response = await new AccountCreateTransaction()
-    .setInitialBalance(new Hbar(100))
+    .setInitialBalance(new Hbar(+(process.env.INITIAL_BALANCE || "300")))
     .setKey(publicKey)
     .execute(client);
 
@@ -121,14 +121,19 @@ export async function mintToken(
 export async function getStateOfProofNft(
   network: string,
   tokenId: TokenId,
-  treasuryId: AccountId
+  treasuryId: AccountId,
+  expectedCount: number
 ) {
-  await new Promise((r) => setTimeout(r, 10000));
-  //const client = getClient(network);
-  const { nfts } = await queryApi(
-    network,
-    `api/v1/tokens/${tokenId.toString()}/nfts`
-  );
+  let nfts = [];
+  while (nfts.length < expectedCount) {
+    await new Promise((r) => setTimeout(r, 2000));
+    const data = await queryApi(
+      network,
+      `api/v1/tokens/${tokenId.toString()}/nfts`
+    );
+    nfts = data.nfts;
+  }
+
   nfts.forEach((item: any) => {
     item.metadata = JSON.parse(Buffer.from(item.metadata, "base64").toString());
   });
@@ -163,7 +168,8 @@ export async function getStateOfProofNft(
       );
       const networkHost = getNetwork(network);
       finalData.push({
-        createdDate: nft.created_timestamp,
+        createdDate: new Date(+nft.created_timestamp * 1000).toISOString(),
+        timestamp: nft.created_timestamp,
         accountId: nft.account_id,
         tokenId: nft.token_id,
         serialNumber: nft.serial_number,
