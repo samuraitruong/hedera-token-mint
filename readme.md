@@ -11,7 +11,7 @@ yarn
 3. run
 
 ```
-yarn mint --count=10
+yarn start:dev mint --count=10
 ``
 
 

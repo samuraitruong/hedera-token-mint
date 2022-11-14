@@ -1,6 +1,10 @@
 import { Client } from "@hashgraph/sdk";
 import axios from "axios";
-
+export function getNetwork(network: string) {
+  return network === "testnet"
+    ? "https://testnet.mirrornode.hedera.com"
+    : "https://mainnet-public.mirrornode.hedera.com";
+}
 export function getClient(
   network: string,
   accountId?: string,
@@ -34,10 +38,7 @@ export function getClient(
 
 export async function queryApi(network: string, path: string, query: any = {}) {
   console.log("Query data", path, query);
-  const host =
-    network === "testnet"
-      ? "https://testnet.mirrornode.hedera.com"
-      : "https://mainnet-public.mirrornode.hedera.com/";
+  const host = getNetwork(network);
   const url = `${host}/${path}`;
   const { data } = await axios.get(url, { params: query });
   return data;

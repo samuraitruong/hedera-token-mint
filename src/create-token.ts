@@ -9,7 +9,7 @@ import {
   TokenMintTransaction,
   TokenId,
 } from "@hashgraph/sdk";
-import { getClient, queryApi } from "./utils";
+import { getClient, getNetwork, queryApi } from "./utils";
 import fs from "fs";
 
 export async function createAccount(network: string) {
@@ -82,7 +82,8 @@ export async function mintToken(
   network: string,
   tokenId: TokenId,
   treasuryAccount: AccountId,
-  pk: PrivateKey
+  pk: PrivateKey,
+  metadata?: any
 ) {
   const client = getClient(
     network,
@@ -98,7 +99,9 @@ export async function mintToken(
   let mintTx = await new TokenMintTransaction()
     .setTokenId(tokenId)
     .setTransactionMemo(cid)
-    .setMetadata([Buffer.from(JSON.stringify({ carbon_value: 1, cid }))])
+    .setMetadata([
+      Buffer.from(JSON.stringify({ ...metadata, carbon_value: 1, cid })),
+    ])
     .freezeWith(client);
 
   //Sign the transaction with the supply key
@@ -141,28 +144,35 @@ export async function getStateOfProofNft(
   const data = await queryApi(network, "api/v1/transactions", {
     "account.id": treasuryId.toString(),
   });
+  const mintedTokens = data.transactions.filter(
+    (x: any) => x.name === "TOKENMINT"
+  );
+
+  console.log("mintedTokens", mintedTokens.length);
 
   const finalData = [];
 
-  for await (const tx of data.transactions.filter(
-    (x: any) => x.name === "TOKENMINT"
-  )) {
+  for await (const tx of mintedTokens) {
     const cid = Buffer.from(tx.memo_base64, "base64").toString();
 
     const nft = nfts.find((x: any) => x.metadata.cid === cid);
-
-    const stateProof = await queryApi(
-      network,
-      `api/v1/transactions/${tx.transaction_id}/stateproof`
-    );
-    finalData.push({
-      createdDate: nft.created_timestamp,
-      accountId: nft.account_id,
-      tokenId: nft.token_id,
-      serialNumber: nft.serial_number,
-      stateProof: Buffer.from(JSON.stringify(stateProof)).toString("base64"),
-      carbonValue: nft.metadata.carbon_value,
-    });
+    if (nft) {
+      const stateProof = await queryApi(
+        network,
+        `api/v1/transactions/${tx.transaction_id}/stateproof`
+      );
+      const networkHost = getNetwork(network);
+      finalData.push({
+        createdDate: nft.created_timestamp,
+        accountId: nft.account_id,
+        tokenId: nft.token_id,
+        serialNumber: nft.serial_number,
+        stateProof: Buffer.from(JSON.stringify(stateProof)).toString("base64"),
+        stateProofUrl: `${networkHost}/api/v1/transactions/${tx.transaction_id}/stateproof`,
+        transactionId: tx.transaction_id,
+        carbonValue: nft.metadata.carbon_value,
+      });
+    }
   }
 
   return finalData;

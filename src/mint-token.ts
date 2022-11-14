@@ -1,4 +1,3 @@
-import { count } from "console";
 import {
   createAccount,
   createToken,
@@ -21,31 +20,41 @@ export async function processMintToken({
   output: string;
 }) {
   const { privateKey, treasuryId } = await createAccount(network);
+  const projectNames = process.env.PROJECT_NAME?.split(",") || [];
+  const projectDescription = process.env.PROJECT_DESCRIPTION?.split(",") || [];
   if (treasuryId && privateKey) {
-    const tokenId = await createToken(
-      network,
-      treasuryId,
-      privateKey,
-      tokenName,
-      tokenSymbol
-    );
-    if (tokenId) {
-      for await (const i of new Array(count).fill(count)) {
-        await mintToken(network, tokenId, treasuryId, privateKey);
+    const lines: string[] = [];
+    let index = 0;
+    for await (const projectName of projectNames) {
+      const tokenId = await createToken(
+        network,
+        treasuryId,
+        privateKey,
+        tokenName,
+        tokenSymbol
+      );
+      if (tokenId) {
+        for await (const i of new Array(count).fill(count)) {
+          await mintToken(network, tokenId, treasuryId, privateKey, {
+            project: projectName,
+          });
+        }
+        const data = await getStateOfProofNft(network, tokenId, treasuryId);
+        data.forEach((x: any) =>
+          lines.push(
+            `mint_token,Mint of token for Project ${projectName},${x.accountId},${x.tokenId},${x.serialNumber},${x.carbonValue},${x.createdDate},${projectName},${projectDescription[index]},${process.env.EXTERNAL_URL}${x.transactionId},${x.stateProofUrl}`
+          )
+        );
       }
-      const data = await getStateOfProofNft(network, tokenId, treasuryId);
-      const finalCSV = data.map(
-        (x: any) =>
-          `mint_token,Mint of token for Project ${process.env.PROJECT_NAME},${x.accountId},${x.tokenId},${x.serialNumber},${x.carbonValue},${x.createdDate},${process.env.PROJECT_NAME},${process.env.PROJECT_DESCRIPTION},${x.stateProof}`
-      );
-      fs.writeFileSync(
-        output,
-        [
-          "stage,description,account_id,token_id,serial_number,carbon_value,creation_date,project_name,project_description,state_proof",
-          ...finalCSV,
-        ].join("\n")
-      );
+      index++;
     }
+    fs.writeFileSync(
+      output,
+      [
+        "stage,description,account_id,token_id,serial_number,carbon_value,creation_date,project_name,project_description,hyperlink, state_proof",
+        ...lines,
+      ].join("\n")
+    );
   }
 
   process.exit(0);
